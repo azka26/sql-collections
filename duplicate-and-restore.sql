@@ -125,7 +125,7 @@ BEGIN
 	EXEC('RESTORE FILELISTONLY FROM DISK = ''' + @bakFile + '''');
 
 	SELECT @logicalName = LogicalName FROM #FileList WHERE Type = 'D';
-	SET @logicalNameLog = @logicalName + '_log'
+	SELECT @logicalNameLog = LogicalName FROM #FileList WHERE Type = 'L';
 
 
 	-- Set database to single user mode
