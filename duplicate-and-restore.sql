@@ -7,23 +7,36 @@ AS
 BEGIN
 	DECLARE @sourceDB NVARCHAR(MAX) = @sourceDbName;
 	DECLARE @dbName NVARCHAR(MAX) = @targetDbName;
-	DECLARE @bakFile NVARCHAR(MAX) = '/var/opt/mssql/backup/' + FORMAT(GETDATE(), 'yyyyMMddHHmmssfff') + '.bak';
+	DECLARE @fileName NVARCHAR(MAX) = @sourceDbName + '_' + FORMAT(GETDATE(), 'yyyyMMddHHmmssfff');
+	DECLARE @bakFile NVARCHAR(MAX) = '/var/opt/mssql/backup/' + @fileName + '.bak';
+	DECLARE @bakTargetFile NVARCHAR(MAX) = '/var/opt/mssql/backup/' + @fileName + '_clone.bak';
 	DECLARE @dataPath NVARCHAR(MAX) = '/var/opt/mssql/data/';
 	DECLARE @sql NVARCHAR(MAX);
 	DECLARE @logicalName NVARCHAR(MAX);
 	DECLARE @logicalNameLog NVARCHAR(MAX);
+	DECLARE @logicalNameTarget NVARCHAR(MAX);
+	DECLARE @logicalNameLogTarget NVARCHAR(MAX);
 
+	-- BACKUP SORUCE DB
 	BACKUP DATABASE @sourceDB
 	TO DISK = @bakFile
 	WITH FORMAT,
 	  MEDIANAME = 'SQLServerBackups',
-	  NAME = 'Full Backup of testing_rizal';
+	  NAME = 'Full Backup Source';
   
+	-- CREATE TARGET DB
 	IF EXISTS (SELECT name FROM sys.databases WHERE name = @dbName)
 	BEGIN
 		EXEC('DROP DATABASE ' + @dbName);
 	END
 	EXEC('CREATE DATABASE ' + @dbName);
+
+	-- BACKUP TARGET DB
+	BACKUP DATABASE @dbName
+	TO DISK = @bakTargetFile
+	WITH FORMAT,
+	  MEDIANAME = 'SQLServerBackups',
+	  NAME = 'Full Backup Target';
 
 	DROP TABLE IF EXISTS #FileList;
 	CREATE TABLE #FileList (
@@ -52,12 +65,21 @@ BEGIN
 	);
 
 	-- Insert the file list into the temporary table
+	-- READ ORIGINAL LOGICAL NAME
+	DELETE FROM #FileList
 	INSERT INTO #FileList
 	EXEC('RESTORE FILELISTONLY FROM DISK = ''' + @bakFile + '''');
 
+	SELECT * FROM #FileList;
 	SELECT @logicalName = LogicalName FROM #FileList WHERE Type = 'D';
-	SET @logicalNameLog = @logicalName + '_log'
+	SELECT @logicalNameLog = LogicalName FROM #FileList WHERE Type = 'L';
 
+	-- READ TARGET LOGICAL NAME
+	DELETE FROM #FileList;
+	INSERT INTO #FileList
+	EXEC('RESTORE FILELISTONLY FROM DISK = ''' + @bakTargetFile + '''');
+	SELECT @logicalNameTarget = LogicalName FROM #FileList WHERE Type = 'D';
+	SELECT @logicalNameLogTarget = LogicalName FROM #FileList WHERE Type = 'L';
 
 	-- Set database to single user mode
 	EXEC('ALTER DATABASE [' + @dbName + '] SET SINGLE_USER WITH ROLLBACK IMMEDIATE');
@@ -67,8 +89,8 @@ BEGIN
 	RESTORE DATABASE [' + @dbName + ']
 	FROM DISK = ''' + @bakFile + '''
 	WITH REPLACE,
-		MOVE '''+ @logicalName +''' TO ''' + @dataPath + @dbName + '.mdf'',
-		MOVE ''' + @logicalNameLog + ''' TO ''' + @dataPath + @dbName + '_log.ldf'',
+		MOVE '''+ @logicalName +''' TO ''' + @dataPath + @logicalNameTarget + '.mdf'',
+		MOVE ''' + @logicalNameLog + ''' TO ''' + @dataPath + @logicalNameLogTarget + '.ldf'',
 		RECOVERY;');
 
 	EXEC ('ALTER DATABASE [' + @dbName + '] SET MULTI_USER');
