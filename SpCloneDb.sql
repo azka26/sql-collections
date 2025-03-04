@@ -1,6 +1,6 @@
 USE master;
 GO
-CREATE OR ALTER PROCEDURE SpMyDuplicateDb
+CREATE OR ALTER PROCEDURE SpCloneDb
 	@sourceDbName NVARCHAR(MAX),
 	@targetDbName NVARCHAR(MAX)
 AS
