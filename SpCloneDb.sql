@@ -10,6 +10,7 @@ BEGIN
 	DECLARE @fileName NVARCHAR(MAX) = @sourceDbName + '_' + FORMAT(GETDATE(), 'yyyyMMddHHmmssfff');
 	DECLARE @bakFile NVARCHAR(MAX) = '/var/opt/mssql/backup/' + @fileName + '.bak';
 	DECLARE @bakTargetFile NVARCHAR(MAX) = '/var/opt/mssql/backup/' + @fileName + '_clone.bak';
+	DECLARE @bakTargetFileOriginal NVARCHAR(MAX) = '/var/opt/mssql/backup/' + @fileName + '_clone_original.bak';
 	DECLARE @dataPath NVARCHAR(MAX) = '/var/opt/mssql/data/';
 	DECLARE @sql NVARCHAR(MAX);
 	DECLARE @logicalName NVARCHAR(MAX);
@@ -27,9 +28,17 @@ BEGIN
 	-- CREATE TARGET DB
 	IF EXISTS (SELECT name FROM sys.databases WHERE name = @dbName)
 	BEGIN
-    EXEC('ALTER DATABASE [' + @dbName + '] SET SINGLE_USER WITH ROLLBACK IMMEDIATE');
+		-- BACKUP TARGET DB
+		BACKUP DATABASE @dbName
+		TO DISK = @bakTargetFileOriginal
+		WITH FORMAT,
+		  MEDIANAME = 'SQLServerBackups',
+		  NAME = 'Full Backup Target Original';
+
+		EXEC('ALTER DATABASE [' + @dbName + '] SET SINGLE_USER WITH ROLLBACK IMMEDIATE');
 		EXEC('DROP DATABASE ' + @dbName);
 	END
+
 	EXEC('CREATE DATABASE ' + @dbName);
 
 	-- BACKUP TARGET DB
@@ -67,7 +76,7 @@ BEGIN
 
 	-- Insert the file list into the temporary table
 	-- READ ORIGINAL LOGICAL NAME
-	DELETE FROM #FileList
+	DELETE FROM #FileList;
 	INSERT INTO #FileList
 	EXEC('RESTORE FILELISTONLY FROM DISK = ''' + @bakFile + '''');
 
