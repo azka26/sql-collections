@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS #SQLScripts;
+SELECT CAST('' as NVARCHAR(MAX)) as SqlScript INTO #SQLScripts;
+DELETE FROM #SQLScripts;
+
 DECLARE @TableName NVARCHAR(128);
 DECLARE @SQL NVARCHAR(MAX);
 DECLARE @PKCols NVARCHAR(MAX);
@@ -45,10 +49,12 @@ BEGIN
 
     -- Finalize
     SET @SQL = LEFT(@SQL, LEN(@SQL) - 1) + CHAR(13) +');' + CHAR(13);
-    PRINT @SQL;
+    INSERT INTO #SQLScripts (SqlScript) VALUES (@SQL);
 
     FETCH NEXT FROM TableCursor INTO @TableName;
 END
 
 CLOSE TableCursor;
 DEALLOCATE TableCursor;
+
+SELECT * FROM #SQLScripts;
