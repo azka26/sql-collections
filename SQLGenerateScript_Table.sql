@@ -1,11 +1,11 @@
 DECLARE @TableName NVARCHAR(128);
 DECLARE @SQL NVARCHAR(MAX);
 DECLARE @PKCols NVARCHAR(MAX);
-DECLARE TableIQCursor CURSOR FOR 
+DECLARE TableCursor CURSOR FOR 
     SELECT name FROM sys.tables WHERE name LIKE 'IQ_%';
 
-OPEN TableIQCursor;
-FETCH NEXT FROM TableIQCursor INTO @TableName;
+OPEN TableCursor;
+FETCH NEXT FROM TableCursor INTO @TableName;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -47,8 +47,8 @@ BEGIN
     SET @SQL = LEFT(@SQL, LEN(@SQL) - 1) + CHAR(13) +');' + CHAR(13);
     PRINT @SQL;
 
-    FETCH NEXT FROM TableIQCursor INTO @TableName;
+    FETCH NEXT FROM TableCursor INTO @TableName;
 END
 
-CLOSE TableIQCursor;
-DEALLOCATE TableIQCursor;
+CLOSE TableCursor;
+DEALLOCATE TableCursor;
