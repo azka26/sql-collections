@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS #SQLScripts;
+SELECT CAST('' as NVARCHAR(MAX)) as SqlScript INTO #SQLScripts;
+DELETE FROM #SQLScripts;
+
 DECLARE @ViewName NVARCHAR(128);
 DECLARE @SQL NVARCHAR(MAX);
 DECLARE @SQLCreateView NVARCHAR(MAX);
@@ -31,11 +35,14 @@ BEGIN
     SET @SQLCreateView = 'CREATE OR ALTER VIEW [' + @ViewName + ']' + CHAR(13)
                             + 'AS' + CHAR(13) 
                             + 'SELECT * FROM [' + @ViewName + '_Snapshot];' + CHAR(13);
-    PRINT @SQL;
-    PRINT @SQLCreateView;
+
+    INSERT INTO #SQLScripts (SqlScript) VALUES (@SQL);
+    INSERT INTO #SQLScripts (SqlScript) VALUES (@SQLCreateView);
 
     FETCH NEXT FROM ViewCursor INTO @ViewName;
 END
 
 CLOSE ViewCursor;
 DEALLOCATE ViewCursor;
+
+SELECT * FROM #SQLScripts;
