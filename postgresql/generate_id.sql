@@ -1,3 +1,5 @@
+-- GENERATE NEW ID
+reset all;
 CREATE OR REPLACE FUNCTION generate_id(
     p_prefix TEXT,
     p_seq_name TEXT,
@@ -13,25 +15,11 @@ BEGIN
     full_seq_name := p_seq_name;
     IF p_seq_suffix IS NOT NULL AND p_seq_suffix <> '' THEN
         full_seq_name := p_seq_name || '-' || p_seq_suffix;
-		
-        -- Drop all sequences starting with p_seq_name
-        FOR seq_to_drop IN
-            SELECT relname
-            FROM pg_class
-            WHERE relkind = 'S'
-              AND relname LIKE p_seq_name || '%'
-        LOOP
-			IF seq_to_drop = full_seq_name THEN
-				CONTINUE;
-			END IF;
-			
-            EXECUTE format('DROP SEQUENCE IF EXISTS %I CASCADE', seq_to_drop);
-        END LOOP;
     END IF;
 
 	-- Create sequence if missing
     IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relkind = 'S' AND relname = full_seq_name) THEN
-        EXECUTE format('CREATE SEQUENCE %I START WITH 1 INCREMENT BY 1 MINVALUE 1 CACHE 10', full_seq_name);
+        EXECUTE format('CREATE SEQUENCE %I START WITH 1 INCREMENT BY 1 MINVALUE 1', full_seq_name);
     END IF;
 
     -- Get next value from the selected sequence
@@ -45,3 +33,35 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
+
+-- CLEANUP SEQUENCE 
+reset all;
+CREATE OR REPLACE FUNCTION cleanup_old_sequences(
+    p_base_prefix TEXT,
+    p_keep_suffix TEXT
+)
+RETURNS VOID AS $$
+DECLARE
+    seq_name TEXT;
+    keep_seq TEXT := p_base_prefix || '-' || p_keep_suffix;
+BEGIN
+    FOR seq_name IN
+        SELECT relname
+        FROM pg_class
+        WHERE relkind = 'S'
+          AND relname LIKE p_base_prefix || '-%'
+    LOOP
+        -- Skip the one we want to keep
+        IF seq_name = keep_seq THEN
+            CONTINUE;
+        END IF;
+
+        -- Drop the old sequence
+        EXECUTE format('DROP SEQUENCE IF EXISTS %I CASCADE', seq_name);
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+select generate_id('PID-', 'tbl_id_seq', '2025-05', 11);
+select cleanup_old_sequences('tbl_id_seq', '2025-04');
+SELECT * FROM pg_class WHERE relkind = 'S' AND relname like 'tbl_id_seq_%';
