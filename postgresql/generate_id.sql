@@ -1,9 +1,9 @@
 -- GENERATE NEW ID
 reset all;
 CREATE OR REPLACE FUNCTION generate_id(
-    p_prefix TEXT,
     p_seq_name TEXT,
-    p_seq_suffix TEXT,
+	p_seq_suffix TEXT,
+    p_prefix TEXT,
     p_pad_left INT
 )
 RETURNS TEXT AS $$
@@ -65,3 +65,9 @@ $$ LANGUAGE plpgsql;
 select generate_id('PID-', 'tbl_id_seq', '2025-05', 11);
 select cleanup_old_sequences('tbl_id_seq', '2025-04');
 SELECT * FROM pg_class WHERE relkind = 'S' AND relname like 'tbl_id_seq_%';
+
+
+WITH new_id AS (
+    SELECT generate_id('INV', '202501', 'INV202501-', 8) AS id
+)
+SELECT id FROM new_id;
